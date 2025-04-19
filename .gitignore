@@ -1,0 +1,5 @@
+# Bỏ qua file
+.env
+
+# Bỏ qua thư mục
+node_modules/

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Trị Hệ Thống</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</head>
+
+<body class="d-flex">
+    <!-- Sidebar -->
+    <nav class="sidebar d-flex flex-column vh-100 bg-dark text-white p-3">
+        <h4 class="text-center mb-4">Admin</h4>
+        <a href="admin.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-chart-bar"></i> Thống Kê BMI
+        </a>
+        <a href="userManager.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-user"></i> Quản lý người dùng
+        </a>
+        <a href="bmiManager.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-user"></i> Quản lý Lịch sử BMI
+        </a>
+        <button class="btn btn-danger" id="logout-btn">Đăng Xuất</button>
+    </nav>
+
+    <!-- Nội dung chính -->
+    <div class="main-content flex-grow-1 p-4">
+        <div class="container">
+            <h2 class="text-primary mb-4">Quản Lý Người Dùng</h2>
+
+            <div class="mb-3 row">
+                <label for="search-input" class="col-sm-2 col-form-label">Tìm kiếm:</label>
+                <div class="col-sm-10">
+                    <input type="text" id="search-input" class="form-control" placeholder="Nhập tên hoặc gmail...">
+                </div>
+            </div>
+
+            <div class="mb-3 row">
+                <label for="from-date" class="col-sm-2 col-form-label">Từ ngày:</label>
+                <div class="col-sm-4">
+                    <input type="date" id="from-date" class="form-control">
+                </div>
+
+                <label for="to-date" class="col-sm-2 col-form-label">Đến ngày:</label>
+                <div class="col-sm-4">
+                    <input type="date" id="to-date" class="form-control">
+                </div>
+            </div>
+
+            <div class="mb-3 row">
+                <div class="col-sm-12 text-end">
+                    <button id="search-btn" class="btn btn-primary">Tìm kiếm</button>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách người dùng -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table">
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ Tên</th>
+                            <th>Gmail</th>
+                            <th>Role</th>
+                            <th>Ngày Tạo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body">
+                        <!-- Dữ liệu từ API sẽ được chèn vào đây -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-center mt-3">
+                <ul id="pagination-links" class="pagination"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getToken() {
+            return localStorage.getItem("token");
+        }
+
+        function getUsername() {
+            return localStorage.getItem("fullName");
+        }
+
+        function clearAuthData() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("fullName");
+        }
+
+        function logout() {
+            clearAuthData();
+            window.location.href = "/src/views/index.html";
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            const token = getToken();
+            const fullName = getUsername();
+
+            if (!token || !fullName) {
+                alert("Vui lòng đăng nhập để truy cập trang này!");
+                window.location.href = "/src/views/index.html";
+                return;
+            }
+            document.getElementById("logout-btn").addEventListener("click", logout);
+
+            fetchUsers();
+            let userData = [];
+            const itemsPerPage = 10; // Số bản ghi mỗi trang
+            let currentPage = 1;
+
+            async function fetchUsers() {
+                try {
+                    const res = await fetch("http://localhost:3000/api/v1/admin/getAllUser", {
+                        method: "GET",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) throw new Error("Lỗi lấy danh sách người dùng");
+                    userData = await res.json();
+                    renderTable();
+                    renderPagination();
+                } catch (error) {
+                    console.error("Lỗi khi lấy danh sách người dùng:", error);
+                }
+            }
+
+            function renderTable() {
+                const tableBody = document.getElementById("user-table-body");
+                tableBody.innerHTML = "";
+
+                const start = (currentPage - 1) * itemsPerPage;
+                const end = start + itemsPerPage;
+                const paginatedData = userData.slice(start, end);
+
+                paginatedData.forEach((user, index) => {
+                    const row = `
+                    <tr>
+                        <td>${start + index + 1}</td>
+                        <td>${user.full_name}</td>
+                        <td>${user.gmail}</td>
+                        <td>${user.role}</td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `;
+                    tableBody.innerHTML += row;
+                });
+            }
+
+            function renderPagination() {
+                const totalPages = Math.ceil(userData.length / itemsPerPage);
+                const paginationContainer = document.getElementById("pagination-links");
+                paginationContainer.innerHTML = "";
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageItem = document.createElement("li");
+                    pageItem.classList.add("page-item");
+                    if (i === currentPage) {
+                        pageItem.classList.add("active");
+                    }
+
+                    const pageLink = document.createElement("a");
+                    pageLink.classList.add("page-link");
+                    pageLink.href = "#";
+                    pageLink.textContent = i;
+
+                    pageLink.addEventListener("click", function () {
+                        currentPage = i;
+                        renderTable();
+                        renderPagination();
+                    });
+
+                    pageItem.appendChild(pageLink);
+                    paginationContainer.appendChild(pageItem);
+                }
+            }
+
+            //Tìm kiếm user
+            document.getElementById("search-btn").addEventListener("click", async function () {
+                const keyword = document.getElementById("search-input").value.trim();
+                const fromDate = document.getElementById("from-date").value;
+                const toDate = document.getElementById("to-date").value;
+
+                // Tạo query string linh hoạt
+                const params = new URLSearchParams();
+                if (keyword) params.append("keyword", keyword);
+                if (fromDate) params.append("fromDate", fromDate);
+                if (toDate) params.append("toDate", toDate);
+
+                try {
+                    const res = await fetch(`http://localhost:3000/api/v1/admin/searchUser?${params.toString()}`, {
+                        headers: {
+                            "Authorization": `Bearer ${getToken()}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) throw new Error("Lỗi tìm kiếm");
+
+                    userData = await res.json(); // Cập nhật dữ liệu
+                    currentPage = 1;
+                    renderTable();
+                    renderPagination();
+                } catch (err) {
+                    console.error("Lỗi tìm kiếm người dùng:", err);
+                }
+            });
+
+        });
+    </script>
+</body>
