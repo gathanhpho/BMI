@@ -6,8 +6,10 @@ const auth = require('./authRoutes');
 const user = require('./userRoutes');
 const admin = require('./adminRoutes');
 
+const validateBMIInput = require("../middlewares/validateUsers/validateBMIInput");
+
 function apiRouters(app) {
-    routers.post("/bmi", bmiGues);
+    routers.post("/bmi",validateBMIInput, bmiGues);
     routers.use("/auth", auth); 
     routers.use("/user", user);
     routers.use("/admin", admin);

@@ -1,102 +1,123 @@
 const BmiModel = require("../models/BmiModel");
 const UserModel = require("../models/UserModel");
-const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcryptjs");
+const { validationResult } = require('express-validator');
 
 class UserController {
-    async bmiUser(req, res) {
+    async BMIUser(req, res) {
         try {
-            const idUser = req.user.idUser;
-
-            const { height, weight } = req.body;
-
-            if (!height || !weight) {
-                return res.status(400).json({ message: "Thiếu dữ liệu đầu vào" });
+            // Kiểm tra lỗi từ express-validator
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
             }
+
+            const idUser = req.user.idUser;
+            const { height, weight } = req.body;
 
             // Tính BMI
             const heightInMeters = height / 100;
-            const weightInKg = weight;
+            const bmiIndex = Number((weight / (heightInMeters * heightInMeters)).toFixed(1));
 
-            const bmiIndex = (weightInKg / (heightInMeters * heightInMeters)).toFixed(2);
-
-            // Xác định tình trạng BMI
+            // Xác định tình trạng BMI (sử dụng đúng với ENUM trong DB)
             let status;
-            if (bmiIndex < 18.5) {
-                status = "Thiếu cân";
-            } else if (bmiIndex >= 18.5 && bmiIndex < 24.9) {
-                status = "Bình thường";
-            } else if (bmiIndex >= 25 && bmiIndex < 29.9) {
-                status = "Thừa cân";
-            } else {
-                status = "Béo phì";
-            }
+            let advice;
 
-            let advice = "";
             if (bmiIndex < 18.5) {
+                status = "Thiếu cân";
                 advice = "Bạn đang thiếu cân. Hãy ăn uống đủ chất và tập luyện để tăng cân.";
             } else if (bmiIndex >= 18.5 && bmiIndex < 24.9) {
+                status = "Bình thường";
                 advice = "Chúc mừng! Bạn có cân nặng lý tưởng. Hãy duy trì lối sống lành mạnh.";
             } else if (bmiIndex >= 25 && bmiIndex < 29.9) {
+                status = "Thừa cân";
                 advice = "Bạn đang thừa cân. Hãy điều chỉnh chế độ ăn và tập luyện để giảm cân.";
             } else {
+                status = "Béo phì";
                 advice = "Bạn đang béo phì. Hãy tham khảo ý kiến bác sĩ để có kế hoạch giảm cân an toàn.";
             }
 
-            const idBMI = uuidv4();
             // Lưu vào database
-            await BmiModel.saveBMI(idBMI, idUser, height, weight, bmiIndex, status);
+            await BmiModel.saveBMI(idUser, height, weight, bmiIndex, status);
 
-            res.json({ message: "Tính toán và lưu thành công", bmiIndex, advice });
+            res.json({ message: "Tính toán và lưu thành công", bmiIndex, status, advice });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: "Lỗi server", error: error.message });
         }
     }
 
-    async getUserInfo(req, res) {
+    // Lấy thông tin User
+    async getUserById(req, res) {
         try {
             const idUser = req.user.idUser;
-            // console.log(req.user);
-
             const user = await UserModel.getUserById(idUser);
-            res.json(user);
+            res.status(200).json(user);
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: "Lỗi server", error: error.message });
+        }
+    }
+
+    // Chỉnh sửa thông tin User
+    async updateUserInfo(req, res) {
+        try {
+            // Kiểm tra lỗi từ express-validator
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            // Lấy thông tin từ request và user (thường user sẽ có idUser từ middleware)
+            const idUser = req.user.idUser;
+            const { fullName, email, gender, phone } = req.body; // Thêm gender và phone
+
+            // Cập nhật thông tin người dùng trong DB
+            await UserModel.updateUserInfo(idUser, fullName, email, gender, phone);
+
+            // Trả về phản hồi thành công
+            res.status(200).json({ message: "Cập nhật thông tin thành công!" });
+        } catch (error) {
+            res.status(500).json({ message: "Lỗi cập nhật thông tin", error: error.message });
         }
     }
 
     async changePassword(req, res) {
         try {
+
             const idUser = req.user.idUser;
-            const { currentPassword, newPassword, confirmPassword } = req.body;
+            const { oldPassword, newPassword } = req.body;
 
-            if (!currentPassword || !newPassword, !confirmPassword) {
-                return res.status(400).json({ message: "Vui lòng nhập đủ thông tin!" });
-            }
+            if(!oldPassword) return res.status(400).json({
+                errors: [
+                    { path: "oldPassword", msg: "Mật khẩu cũ không được để trống!" }
+                ]
+            });
 
-            // Lấy password cũ từ db
             const user = await UserModel.getUserById(idUser);
-            if (!user) {
-                return res.status(404).json({ message: "Người dùng không tồn tại!" });
-            }
 
             // Kiểm tra mật khẩu cũ
-            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
             if (!isMatch) {
-                return res.status(400).json({ message: "Mật khẩu cũ không đúng!" });
+                return res.status(400).json({
+                    errors: [
+                        { path: "oldPassword", msg: "Mật khẩu cũ không đúng!" }
+                    ]
+                });
             }
 
-            if (newPassword !== confirmPassword) {
-                return res.status(400).json({ message: "Mật khẩu mới không khớp!" });
+            // Kiểm tra lỗi từ express-validator
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
             }
 
             // Băm mật khẩu mới
-            const salt = await bcrypt.genSalt(10);
+            const salt = await bcrypt.genSalt(14);
             const newHashedPassword = await bcrypt.hash(newPassword, salt);
+
             await UserModel.updatePassword(idUser, newHashedPassword);
-            res.json({ message: "Đổi mật khẩu thành công" });
+            res.json({ message: "Đổi mật khẩu thành công!" });
         }
         catch (error) {
             console.error(error);
@@ -104,54 +125,99 @@ class UserController {
         }
     }
 
+    // Lấy BMI
     async getBMIHistoryByUser(req, res) {
         try {
             const idUser = req.user.idUser;
-            const bmiHistoryByUser = await BmiModel.getBMIByUserId(idUser);
 
-            if (bmiHistoryByUser.length === 0) {
-                return res.status(404).json({ message: "Không có lịch sử BMI nào." });
-            }
+            const limit = parseInt(req.query.limit) || 10;
+            const page = parseInt(req.query.page) || 1;
+            const offset = (page - 1) * limit;
 
-            res.json(bmiHistoryByUser);
+            const bmi = await BmiModel.getBMIByUserId(idUser, limit, offset);
+            const total = await BmiModel.getTotalBMIByUserId(idUser);
+
+            res.status(200).json({
+                itemsPerPage: limit,
+                currentPage: page,
+                totalBMI: total,
+                totalPages: Math.ceil(total / limit),
+                bmi: bmi
+            });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: "Lỗi server", error: error.message });
         }
     }
 
+    // Tìm kiếm BMI
     async filterBMI(req, res) {
         try {
             const idUser = req.user.idUser;
-            const { status } = req.query;
-
-            const bmiRecords = await BmiModel.filterBMI(idUser, status);
-            res.json(bmiRecords);
+            const { status, fromDate, toDate } = req.query;
+            
+            const limit = parseInt(req.query.limit) || 10;
+            const page = parseInt(req.query.page) || 1;
+            const offset = (page - 1) * limit;
+    
+            // Gọi phương thức filterBMIByUser với các tham số
+            const bmi= await BmiModel.filterBMIByUser(idUser, status, fromDate, toDate, limit, offset);
+            const total = await BmiModel.getTotalBMIByUserId(idUser);
+    
+            res.status(200).json({
+                itemsPerPage: limit,
+                currentPage: page,
+                totalBMI: total,
+                totalPages: Math.ceil(total / limit),
+                bmi: bmi
+            });;  // Trả về dữ liệu BMI
         } catch (error) {
             res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
         }
     }
 
+    // User xóa mềm
     async softDeleteUser(req, res) {
         try {
             const idBMI = req.params.idBMI;
-            await BmiModel.softDeleteBMI(idBMI);
-            res.json({ message: 'Tài khoản đã được đánh dấu xoá' , is_delete: true });
+            await BmiModel.softDeleteBMIByUser(idBMI);
+            res.status(200).json({ message: 'Bản ghi đã được xóa, đến thùng rác để khôi phục', is_deleted_by_use: true });
         } catch (error) {
             res.status(500).json({ success: false, message: "Lỗi server", error: error.message })
         }
     }
 
-    async updateUserInfo(req, res) {
+    // Lấy bản ghi đã xóa của User
+    async getSoftDeletedBmiByUserId(req, res){
         try {
             const idUser = req.user.idUser;
-            const { fullName, gmail } = req.body;
 
-            await UserModel.updateUserInfo(idUser, fullName, gmail);
-
-            res.status(200).json({ message: "Cập nhật thông tin thành công!" });
+            const data = await BmiModel.getSoftDeletedBmiByUserId(idUser);
+            return res.status(200).json(data);
         } catch (error) {
-            res.status(500).json({ message: "Lỗi cập nhật thông tin", error: error.message });
+            res.status(500).json({ success: false, message: "Lỗi server", error: error.message })
+        }
+    }
+
+    // Khôi phục bản ghi đã xóa
+    async recoverBMI(req, res) {
+        try {
+            const idBMI = req.params.idBMI;
+            await BmiModel.recoverBMI(idBMI);
+            res.status(200).json({ message: 'Bản ghi đã được khôi phục', is_deleted_by_use: false });
+        } catch (error) {
+            res.status(500).json({ success: false, message: "Lỗi server", error: error.message })
+        }
+    }
+
+    // User xóa hản hản ghi
+    async deleteByUser(req, res) {
+        try {
+            const idBMI = req.params.idBMI;
+            await BmiModel.deleteByUser(idBMI);
+            res.status(200).json({ message: 'Bản ghi đã xóa thành công', is_delete: true });
+        } catch (error) {
+            res.status(500).json({ success: false, message: "Lỗi server", error: error.message })
         }
     }
 }

@@ -1,87 +1,106 @@
-const User = require("../models/UserModel");
+const UserModel = require("../models/UserModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { v4: uuidv4 } = require("uuid");
+const { validationResult } = require('express-validator');
 
 class AuthControllers {
+
     async register(req, res) {
         try {
-            const { fullName, gmail, password, confirmPassword } = req.body;
-
-            if (!fullName || !gmail || !password || !confirmPassword) {
-                return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+            // Kiểm tra lỗi từ express-validator
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
             }
 
-            // Kiểm tra email phải có đúng đuôi @gmail.com
-            const emailRegex = /^[^\s@]+@gmail\.com$/;
-            if (!emailRegex.test(gmail)) {
-                return res.status(400).json({ message: "Gmail phải có định dạng @gmail.com!" });
-            }
-            // Kiểm tra độ dài mật khẩu phải trên 6 ký tự
-            if (password.length < 6) {
-                return res.status(400).json({ message: "Mật khẩu phải có ít nhất 6 ký tự!" });
-            }
+            const { fullName, email, password, gender, phone } = req.body;
 
-            if (password !== confirmPassword) {
-                return res.status(400).json({ message: "Mật khẩu xác nhận không khớp!" });
-            }
-
-            const existingUser = await User.findByEmail(gmail);
+            // Kiểm tra email đã tồn tại trong hệ thống
+            const existingUser = await UserModel.findUserByEmail(email);
             if (existingUser) {
-                return res.status(409).json({ message: "Email đã tồn tại!" });
+                return res.status(409).json({
+                    errors: [
+                        { path: "email", msg: "Email đã tồn tại!" }
+                    ]
+                });
             }
 
-            const salt = await bcrypt.genSalt(10);
+            // Mã hóa mật khẩu
+            const salt = await bcrypt.genSalt(14);
             const hashedPassword = await bcrypt.hash(password, salt);
-            const idUser = uuidv4();
 
-            await User.create(idUser, fullName, gmail, hashedPassword);
-            res.status(201).json({ message: "Đăng ký thành công!" });
+            // Lưu vào cơ sở dữ liệu
+            await UserModel.create(fullName, email, hashedPassword, gender, phone);
 
+            // Trả về thông báo đăng ký thành công
+            res.status(201).json({ message: 'Đăng ký thành công!' });
         } catch (error) {
-            res.status(500).json({ message: "Đăng ký thất bại!", error: error.message });
+            res.status(500).json({ message: 'Đăng ký thất bại!', error: error.message });
         }
     }
 
+    // đăng nhập
     async login(req, res) {
         try {
-            const { gmail, password } = req.body;
-
-            if (!gmail || !password) {
-                return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+            // Kiểm tra lỗi từ express-validator
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
             }
 
-            const checkEmail = await User.findByEmail(gmail);
-            if (!checkEmail) {
-                return res.status(401).json({ message: "Sai Gmail không tồn tại!" });
+            const { email, password } = req.body;
+
+            // Kiểm tra email có tồn tại trong hệ thống không
+            const auth = await UserModel.findUserByEmail(email);
+            if (!auth) {
+                return res.status(401).json({
+                    errors: [
+                        { path: "email", msg: "Tài khoản không tồn tại!" }
+                    ]
+                });
             }
 
-            const isMatch = await bcrypt.compare(password, checkEmail.password);
+            // Kiểm tra tài khoản có bị khóa hay ko
+            if (Number(auth.is_delete) === 1) {
+                return res.status(403).json({
+                    errors: [
+                        { path: "email", msg: "Tài khoản đã bị khóa!" }
+                    ]
+                });
+            }
+
+            // Kiểm tra mật khẩu có khớp không
+            const isMatch = await bcrypt.compare(password, auth.password);
             if (!isMatch) {
-                return res.status(401).json({ message: "Sai mật khẩu!" });
+                return res.status(401).json({errors: [
+                    { path: "password", msg: "Sai mật khẩu!" }
+                ]});
             }
 
-            // Tạo token JWT
+            // Kiểm tra môi trường có biến JWT_SECRET không
             if (!process.env.JWT_SECRET) {
                 return res.status(500).json({ message: "Lỗi máy chủ: Thiếu JWT_SECRET!" });
             }
 
+            // Tạo token JWT (Access Token)
             const token = jwt.sign(
-                { idUser: checkEmail.id_user, role: checkEmail.role },
+                { idUser: auth.id_user, role: auth.role },
                 process.env.JWT_SECRET,
-                { expiresIn: "2d" }
+                { expiresIn: '1d' }
             );
 
+            // Trả về thông tin đăng nhập thành công và token
             res.json({
                 message: "Đăng nhập thành công!",
                 token,
-                fullName: checkEmail.full_name,
-                redirect: checkEmail.role === "admin" ? "admin/admin.html" : "users/user.html"
+                fullName: auth.full_name,
+                redirect: auth.role === 'admin' ? 'admin/admin.html' : 'users/user.html'
             });
+
         } catch (error) {
+            // Xử lý lỗi máy chủ
             res.status(500).json({ message: "Lỗi máy chủ!", error: error.message });
         }
     }
 }
-
 module.exports = new AuthControllers();

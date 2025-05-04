@@ -5,7 +5,7 @@ const authMiddleware = (roles) => {
     const authHeader = req.headers.authorization;
     // console.log("Headers nhận được:", req.headers);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer")) {
       return res.status(403).json({ message: "Không có token hoặc token sai định dạng!" });
     }
 

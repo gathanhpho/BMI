@@ -35,189 +35,99 @@
     </nav>
 
     <div class="container mt-5">
-        <div class="card shadow-lg">
-            <div class="card-header bg-primary text-white text-center">
-                <h3>Hồ sơ cá nhân</h3>
+        <div class="card shadow-lg rounded-4">
+            <div class="card-header bg-primary text-white text-center rounded-top-4">
+                <h3 class="mb-0">Hồ sơ cá nhân</h3>
             </div>
+            <!-- Thông báo thành công -->
+            <div id="success-message" class="alert alert-success d-none" role="alert"></div>
             <div class="card-body">
-                <form id="profile-form">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Tên đăng nhập</label>
-                        <input type="text" class="form-control" id="username" disabled>
+                <form id="profile-form" class="mt-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="full_name" class="form-label">Họ và tên</label>
+                            <input type="text" class="form-control rounded-3" id="full_name" disabled>
+                            <div class="error-message text-danger mt-2" id="updateFullNameError"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control rounded-3" id="email" disabled>
+                            <div class="error-message text-danger mt-2" id="updateEmailError"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Giới tính</label>
+                            <!-- Hiển thị khi không chỉnh sửa -->
+                            <input type="text" class="form-control rounded-3" id="gender" disabled>
+                            <!-- Radio khi chỉnh sửa -->
+                            <div id="gender-radio-group" class="d-none mt-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="gender" id="gender-nam"
+                                        value="Nam">
+                                    <label class="form-check-label" for="gender-nam">Nam</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="gender" id="gender-nu"
+                                        value="Nữ">
+                                    <label class="form-check-label" for="gender-nu">Nữ</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="gender" id="gender-khac"
+                                        value="Khác">
+                                    <label class="form-check-label" for="gender-khac">Khác</label>
+                                </div>
+                            </div>
+                            <div class="error-message text-danger mt-2" id="updateGenderError"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Số điện thoại</label>
+                            <input type="text" class="form-control rounded-3" id="phone" disabled>
+                            <div class="error-message text-danger mt-2" id="updatePhoneError"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="created_at" class="form-label">Ngày tạo tài khoản</label>
+                            <input type="text" class="form-control rounded-3" id="created_at" disabled>
+                            <!-- Không cần div lỗi cho trường này vì nó không chỉnh sửa được -->
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="gmail" class="form-label">Gmail</label>
-                        <input type="email" class="form-control" id="gmail" disabled>
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-warning px-4" id="edit-btn">Chỉnh sửa</button>
+                        <button type="submit" class="btn btn-success px-4 d-none" id="save-btn">Lưu</button>
                     </div>
-                    <div class="mb-3">
-                        <label for="created_at" class="form-label">Ngày tạo tài khoản</label>
-                        <input type="text" class="form-control" id="created_at" disabled>
-                    </div>
-                    <button type="button" class="btn btn-warning" id="edit-btn">Chỉnh sửa</button>
-                    <button type="submit" class="btn btn-success d-none" id="save-btn">Lưu</button>
                 </form>
-                <button type="button" class="btn btn-primary mt-3" id="toggle-password-form-btn">Đổi mật khẩu</button>
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-outline-primary px-4" id="toggle-password-form-btn">Đổi mật
+                        khẩu</button>
 
-                <!-- Form đổi mật khẩu (ẩn ban đầu) -->
-                <div id="password-form" class="d-none mt-3">
-                    <hr>
-                    <h4 class="text-center">Đổi mật khẩu</h4>
-                    <form id="change-password-form">
-                        <div class="mb-3">
-                            <label for="current-password" class="form-label">Mật khẩu hiện tại</label>
-                            <input type="password" class="form-control" id="current-password">
-                        </div>
-                        <div class="mb-3">
-                            <label for="new-password" class="form-label">Mật khẩu mới</label>
-                            <input type="password" class="form-control" id="new-password">
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirm-password" class="form-label">Xác nhận mật khẩu mới</label>
-                            <input type="password" class="form-control" id="confirm-password">
-                        </div>
-                        <button type="button" class="btn btn-success" id="change-password-btn">Lưu mật khẩu</button>
-                        <button type="button" class="btn btn-secondary" id="cancel-password-btn">Hủy</button>
-                    </form>
+                    <!-- Form đổi mật khẩu (ẩn ban đầu) -->
+                    <div id="password-form" class="d-none mt-3">
+                        <hr>
+                        <h4 class="text-center">Đổi mật khẩu</h4>
+                        <form id="change-password-form">
+                            <div class="mb-3">
+                                <label for="old-password" class="form-label">Mật khẩu hiện tại</label>
+                                <input type="password" class="form-control" id="old-password">
+                                <div class="error-message text-danger mt-2" id="oldPasswordError"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-password" class="form-label">Mật khẩu mới</label>
+                                <input type="password" class="form-control" id="new-password">
+                                <div class="error-message text-danger mt-2" id="newPasswordError"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirm-password" class="form-label">Xác nhận mật khẩu mới</label>
+                                <input type="password" class="form-control" id="confirm-password">
+                                <div class="error-message text-danger mt-2" id="confirmPasswordError"></div>
+                            </div>
+                            <button type="button" class="btn btn-success" id="change-password-btn">Lưu mật khẩu</button>
+                            <button type="button" class="btn btn-secondary" id="cancel-password-btn">Hủy</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script>
-        function getToken() {
-            return localStorage.getItem("token");
-        }
+        <script src="../../public/js/user/userInfo.js"></script>
 
-        function getUsername() {
-            return localStorage.getItem("fullName");
-        }
-
-        function clearAuthData() {
-            localStorage.removeItem("token");
-            localStorage.removeItem("fullName");
-        }
-
-        function logout() {
-            clearAuthData();
-            window.location.href = "/src/views/index.html";
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            const token = getToken();
-            const fullName = getUsername();
-            let idUser = null;
-            const userNameSpan = document.getElementById("user-name");
-
-            if (!token || !fullName) {
-                alert("Vui lòng đăng nhập để truy cập trang này!");
-                window.location.href = "/src/views/index.html";
-                return;
-            }
-
-            userNameSpan.textContent = `Xin chào, ${fullName}`;
-
-            document.getElementById("logout-btn").addEventListener("click", logout);
-
-            try {
-                const response = await fetch("http://localhost:3000/api/v1/user/userInfo", {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    }
-                });
-                if (!response.ok) throw new Error("Lỗi khi lấy thông tin người dùng");
-
-                const user = await response.json();
-                idUser = user.id_user;
-                document.getElementById("username").value = user.full_name;
-                document.getElementById("gmail").value = user.gmail;
-                document.getElementById("created_at").value = new Date(user.created_at).toLocaleDateString("vi-VN");
-                console.log(user.id_user, user.full_name, user.gmail);
-            } catch (error) {
-                console.error("Lỗi khi tải hồ sơ:", error);
-            }
-
-            document.getElementById("edit-btn").addEventListener("click", function () {
-                document.getElementById("username").removeAttribute("disabled");
-                document.getElementById("gmail").removeAttribute("disabled");
-                document.getElementById("edit-btn").classList.add("d-none");
-                document.getElementById("save-btn").classList.remove("d-none");
-            });
-
-            document.getElementById("profile-form").addEventListener("submit", async function (event) {
-                event.preventDefault();
-                if (!idUser) {
-                    alert("Không tìm thấy ID người dùng!");
-                    return;
-                }
-                const fullName = document.getElementById("username").value;
-                const gmail = document.getElementById("gmail").value;
-
-                try {
-                    const response = await fetch(`http://localhost:3000/api/v1/user/updateInfo/${idUser}`, {
-                        method: "PUT",
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ fullName: fullName, gmail: gmail })
-                    });
-                    if (!response.ok) throw new Error("Cập nhật thất bại!");
-                    alert("Cập nhật thành công!");
-                    window.location.reload();
-                } catch (error) {
-                    console.error(error);
-                    alert("Có lỗi xảy ra!");
-                }
-            });
-
-            // Xử lý hiển thị form đổi mật khẩu
-            const passwordForm = document.getElementById("password-form");
-            const togglePasswordFormBtn = document.getElementById("toggle-password-form-btn");
-            const cancelPasswordBtn = document.getElementById("cancel-password-btn");
-
-            togglePasswordFormBtn.addEventListener("click", function () {
-                passwordForm.classList.toggle("d-none");
-            });
-
-            cancelPasswordBtn.addEventListener("click", function () {
-                passwordForm.classList.add("d-none");
-            });
-
-            // Xử lý đổi mật khẩu
-            document.getElementById("change-password-btn").addEventListener("click", async function () {
-                const currentPassword = document.getElementById("current-password").value;
-                const newPassword = document.getElementById("new-password").value;
-                const confirmPassword = document.getElementById("confirm-password").value;
-
-                try {
-                    const response = await fetch("http://localhost:3000/api/v1/user/changePassword", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error("Đổi mật khẩu thất bại!");
-                    }
-
-                    alert("Đổi mật khẩu thành công!");
-                    passwordForm.classList.add("d-none"); // Ẩn form sau khi đổi mật khẩu thành công
-                    document.getElementById("current-password").value = "";
-                    document.getElementById("new-password").value = "";
-                    document.getElementById("confirm-password").value = "";
-                } catch (error) {
-                    console.error("Lỗi khi đổi mật khẩu:", error);
-                    alert("Có lỗi xảy ra, vui lòng thử lại!");
-                }
-            });
-        });
-
-    </script>
 </body>
 
 </html>

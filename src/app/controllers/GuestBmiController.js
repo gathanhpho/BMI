@@ -1,18 +1,12 @@
+const { validationResult } = require('express-validator');
 
 const bmiGues = (req, res) => {
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
     const { weight, height } = req.body;
-
-    if (!weight || !height) {
-        return res.status(400).json({ error: "Vui lòng nhập đầy đủ cân nặng và chiều cao!" });
-    }
-
-    if (weight <= 0 || weight >= 200) {
-        return res.status(400).json({ error: "Cân nặng phải lớn hơn 0 và nhỏ hơn 200!" });
-    }
-
-    if (height <= 0 || height >= 250) {
-        return res.status(400).json({ error: "Chiều cao phải lớn hơn 0 và nhỏ hơn 250!" });
-    }
 
     const heightInMeters = height / 100;
     const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(2);

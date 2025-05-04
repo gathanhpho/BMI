@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thùng Rác - BMI đã xoá</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+
+<body class="d-flex">
+    <!-- Sidebar -->
+    <nav class="sidebar d-flex flex-column vh-100 bg-dark text-white p-3">
+        <h4 class="text-center mb-4">Admin</h4>
+        <a href="../admin.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-chart-bar"></i> Dashboard
+        </a>
+        <a href="../userManager.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-user"></i> Quản lý người dùng
+        </a>
+        <a href="../bmiManager.html" class="text-white text-decoration-none py-2 d-block">
+            <i class="fas fa-user"></i> Quản lý Lịch sử BMI
+        </a>
+        <button class="btn btn-danger" id="logout-btn">Đăng Xuất</button>
+    </nav>
+    <div class="container py-4">
+        <div class="d-flex justify-content-between mb-4">
+            <a href="../bmiManager.html" class="btn btn-secondary">← Quay lại</a>
+
+        </div>
+        <div>
+            <h2 class="text-center">Thùng rác</h2>
+        </div>
+        <!-- Thông báo thành công -->
+        <div id="success-message" class="alert alert-success d-none" role="alert"></div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Họ tên</th>
+                    <th>Email</th>
+                    <th>Chiều cao (m)</th>
+                    <th>Cân nặng (kg)</th>
+                    <th>BMI</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tính</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <!-- Dữ liệu BMI đã xoá sẽ được tải vào đây -->
+            </tbody>
+        </table>
+
+        <nav id="pagination" aria-label="Page navigation">
+            <ul class="pagination justify-content-center" id="pagination-links">
+                <!-- Liên kết phân trang sẽ được tạo động -->
+            </ul>
+        </nav>
+    </div>
+    </div>
+
+    <script type="module" src="../../../public/js/admin/trashs/trashBMI.js"></script>
+</body>

@@ -1,152 +1,152 @@
-const request = require("supertest");
-const express = require("express");
-const authController = require("../app/controllers/AuthController");
-const User = require("../app/models/UserModel");
-const bcrypt = require("bcryptjs");
+const request = require('supertest');
+const express = require('express');
+const bodyParser = require('body-parser');
+const authController = require('../app/controllers/AuthController');
+const validateRegisterInputs = require('../middlewares/validateAuth/validateRegisterInputs');
+const validateLoginInputs = require('../middlewares/validateAuth/validateLoginInputs');
 
-jest.mock("../app/models/UserModel");
-jest.mock("bcryptjs");
+// Mock UserModel
+jest.mock('../app/models/UserModel', () => ({
+    findUserByEmail: jest.fn(),
+    create: jest.fn(),
+}));
+
+const UserModel = require('../app/models/UserModel');
+const bcrypt = require('bcryptjs');
 
 const app = express();
-app.use(express.json());
+app.use(bodyParser.json());
+app.post('/register', validateRegisterInputs, authController.register);
+app.post('/login', validateLoginInputs, authController.login);
 
-app.post("/auth/register", (req, res) => authController.register(req, res));
-app.post("/auth/login", (req, res) => authController.login(req, res));
+// Gán giá trị tạm cho biến môi trường
+process.env.JWT_SECRET = 'testsecret';
 
-describe("POST /auth/register", () => {
+describe('POST /register', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    it("Trả lỗi khi thiếu thông tin đầu vào", async () => {
-        const res = await request(app).post("/auth/register").send({});
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Vui lòng nhập đầy đủ thông tin!");
-    });
+    test('✅ Đăng ký thành công', async () => {
+        UserModel.findUserByEmail.mockResolvedValue(null);
+        UserModel.create.mockResolvedValue();
 
-    it("Trả lỗi khi email không đúng định dạng", async () => {
-        const res = await request(app).post("/auth/register").send({
-            fullName: "Test",
-            gmail: "test@example.com",
+        const res = await request(app).post('/register').send({
+            fullName: "Nguyễn Văn A",
+            email: "a@gmail.com",
             password: "123456",
-            confirmPassword: "123456"
-        });
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Gmail phải có định dạng @gmail.com!");
-    });
-
-    it("Trả lỗi khi mật khẩu quá ngắn", async () => {
-        const res = await request(app).post("/auth/register").send({
-            fullName: "Test",
-            gmail: "test@gmail.com",
-            password: "123",
-            confirmPassword: "123"
-        });
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Mật khẩu phải có ít nhất 6 ký tự!");
-    });
-
-    it("Trả lỗi khi xác nhận mật khẩu không khớp", async () => {
-        const res = await request(app).post("/auth/register").send({
-            fullName: "Test",
-            gmail: "test@gmail.com",
-            password: "123456",
-            confirmPassword: "654321"
-        });
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Mật khẩu xác nhận không khớp!");
-    });
-
-    it("Trả lỗi khi email đã tồn tại", async () => {
-        User.findByEmail.mockResolvedValue({ id_user: "abc123" });
-
-        const res = await request(app).post("/auth/register").send({
-            fullName: "Test",
-            gmail: "test@gmail.com",
-            password: "123456",
-            confirmPassword: "123456"
+            confirmPassword: "123456",
+            gender: "nam",
+            phone: "0912345678"
         });
 
-        expect(res.status).toBe(409);
-        expect(res.body.message).toBe("Email đã tồn tại!");
-    });
-
-    it("Đăng ký thành công", async () => {
-        User.findByEmail.mockResolvedValue(null);
-        bcrypt.genSalt.mockResolvedValue("salt");
-        bcrypt.hash.mockResolvedValue("hashedPassword");
-        User.create.mockResolvedValue();
-
-        const res = await request(app).post("/auth/register").send({
-            fullName: "Test",
-            gmail: "test@gmail.com",
-            password: "123456",
-            confirmPassword: "123456"
-        });
-
-        expect(res.status).toBe(201);
+        expect(res.statusCode).toBe(201);
         expect(res.body.message).toBe("Đăng ký thành công!");
     });
+
+    test('❌ Email đã tồn tại', async () => {
+        UserModel.findUserByEmail.mockResolvedValue({ id: 1 });
+
+        const res = await request(app).post('/register').send({
+            fullName: "Nguyễn Văn A",
+            email: "a@gmail.com",
+            password: "123456",
+            confirmPassword: "123456",
+            gender: "nam",
+            phone: "0912345678"
+        });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.errors[0].msg).toBe("Email đã tồn tại!");
+    });
+
+    test('❌ Lỗi validate - thiếu mật khẩu', async () => {
+        const res = await request(app).post('/register').send({
+            fullName: "Nguyễn Văn A",
+            email: "a@gmail.com",
+            gender: "nam",
+            phone: "0912345678"
+        });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.errors.some(e => e.msg.includes("Mật khẩu"))).toBe(true);
+    });
 });
 
-describe("POST /auth/login", () => {
+describe('POST /login', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        process.env.JWT_SECRET = "testsecret";
     });
 
-    it("Trả lỗi khi thiếu thông tin", async () => {
-        const res = await request(app).post("/auth/login").send({});
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Vui lòng nhập đầy đủ thông tin!");
-    });
-
-    it("Trả lỗi khi email không tồn tại", async () => {
-        User.findByEmail.mockResolvedValue(null);
-
-        const res = await request(app).post("/auth/login").send({
-            gmail: "test@gmail.com",
-            password: "123456"
-        });
-
-        expect(res.status).toBe(401);
-        expect(res.body.message).toBe("Sai Gmail không tồn tại!");
-    });
-
-    it("Trả lỗi khi sai mật khẩu", async () => {
-        User.findByEmail.mockResolvedValue({ password: "hashed" });
-        bcrypt.compare.mockResolvedValue(false);
-
-        const res = await request(app).post("/auth/login").send({
-            gmail: "test@gmail.com",
-            password: "123456"
-        });
-
-        expect(res.status).toBe(401);
-        expect(res.body.message).toBe("Sai mật khẩu!");
-    });
-
-    it("Đăng nhập thành công và trả về token", async () => {
-        const user = {
-            id_user: "user123",
-            full_name: "Test",
-            gmail: "test@gmail.com",
-            password: "hashed",
-            role: "user"
+    test('✅ Đăng nhập thành công', async () => {
+        const mockUser = {
+            id_user: 1,
+            full_name: "Nguyễn Văn A",
+            email: "a@gmail.com",
+            password: await bcrypt.hash("123456", 10),
+            role: "user",
+            is_delete: 0
         };
+        UserModel.findUserByEmail.mockResolvedValue(mockUser);
 
-        User.findByEmail.mockResolvedValue(user);
-        bcrypt.compare.mockResolvedValue(true);
-
-        const res = await request(app).post("/auth/login").send({
-            gmail: "test@gmail.com",
+        const res = await request(app).post('/login').send({
+            email: "a@gmail.com",
             password: "123456"
         });
 
-        expect(res.status).toBe(200);
+        expect(res.statusCode).toBe(200);
         expect(res.body.message).toBe("Đăng nhập thành công!");
-        expect(res.body).toHaveProperty("token");
+        expect(res.body.token).toBeDefined();
         expect(res.body.redirect).toBe("users/user.html");
     });
-});
 
+    test('❌ Sai mật khẩu', async () => {
+        const mockUser = {
+            id_user: 1,
+            email: "a@gmail.com",
+            password: await bcrypt.hash("123456", 10),
+            role: "user",
+            is_delete: 0
+        };
+        UserModel.findUserByEmail.mockResolvedValue(mockUser);
+
+        const res = await request(app).post('/login').send({
+            email: "a@gmail.com",
+            password: "saimatkhau"
+        });
+
+        expect(res.statusCode).toBe(401);
+        expect(res.body.errors[0].msg).toBe("Sai mật khẩu!");
+    });
+
+    test('❌ Tài khoản không tồn tại', async () => {
+        UserModel.findUserByEmail.mockResolvedValue(null);
+
+        const res = await request(app).post('/login').send({
+            email: "khongco@gmail.com",
+            password: "123456"
+        });
+
+        expect(res.statusCode).toBe(401);
+        expect(res.body.errors[0].msg).toBe("Tài khoản không tồn tại!");
+    });
+
+    test('❌ Tài khoản đã bị khóa', async () => {
+        const mockUser = {
+            id_user: 1,
+            email: "a@gmail.com",
+            password: await bcrypt.hash("123456", 10),
+            role: "user",
+            is_delete: 1
+        };
+        UserModel.findUserByEmail.mockResolvedValue(mockUser);
+
+        const res = await request(app).post('/login').send({
+            email: "a@gmail.com",
+            password: "123456"
+        });
+
+        expect(res.statusCode).toBe(403);
+        expect(res.body.errors[0].msg).toBe("Tài khoản đã bị khóa!");
+    });
+});

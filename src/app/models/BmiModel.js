@@ -1,36 +1,78 @@
 const pool = require("../../config/DB/index");
 
 const BmiModel = {
-    saveBMI: async (idBMI, idUser, height, weight, bmiIndex, status) => {
+    // Lưu bản ghi BMI 
+    saveBMI: async (idUser, height, weight, bmiIndex, status) => {
         await pool.execute(
-            "INSERT INTO bmi_records (id_bmi, id_user, height, weight, bmi_index, status) VALUES (?, ?, ?, ?, ?, ?)",
-            [idBMI, idUser, height, weight, bmiIndex, status]
+            "INSERT INTO bmi_records (id_user, height, weight, bmi_index, status) VALUES (?, ?, ?, ?, ?)",
+            [idUser, height, weight, bmiIndex, status]
         );
     },
 
-    findByUserId: async (idUser) => {
-        const [rows] = await pool.execute("SELECT * FROM bmi_records WHERE id_user = ?", [idUser]);
-        return rows.length ? rows : null;
-    },
-
-    getBMIByUserId: async (idUser) => {
-        const [rows] = await pool.execute("SELECT * FROM bmi_records WHERE id_user =? AND is_deleted = 0 ORDER BY created_at DESC", [idUser]);
+    // Lấy BMI cho User
+    getBMIByUserId: async (idUser, limit, offset) => {
+        const [rows] = await pool.query("SELECT * FROM bmi_records WHERE id_user =? AND is_deleted_by_user = 0 ORDER BY created_at DESC  LIMIT ? OFFSET ?", [idUser, limit, offset]);
         return rows;
     },
 
-    filterBMI: async (idUser, status) => {
-        const [rows] = await pool.execute("SELECT * FROM bmi_records WHERE id_user = ? AND status = ? ORDER BY created_at DESC", [idUser, status]);
+    getTotalBMIByUserId: async (idUser) => {
+        const [rows] = await pool.execute("SELECT COUNT(*) AS totalBMIByUserId FROM bmi_records WHERE id_user =? AND is_deleted_by_user = 0",[idUser]);
+        return rows[0].totalBMIByUserId;
+    },
+
+    // Lọc BMI cho User
+    filterBMIByUser: async (idUser, status, fromDate, toDate, limit, offset) => {
+        let query = "SELECT * FROM bmi_records WHERE id_user = ?";
+        const params = [idUser];
+
+        if (status) {
+            query += " AND status = ?";
+            params.push(status);
+        }
+
+        if (fromDate && toDate) {
+            query += " AND created_at BETWEEN ? AND ?";
+            params.push(fromDate, toDate);
+        }
+
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        params.push(limit, offset);
+
+        const [rows] = await pool.query(query, params);
         return rows;
     },
 
-    softDeleteBMI: async (idBMI) => {
-        const [result] = await pool.execute('UPDATE bmi_records SET is_deleted = 1 WHERE id_bmi = ?', [idBMI]);
+    // Xóa mền cho user
+    softDeleteBMIByUser: async (idBMI) => {
+        const [result] = await pool.execute('UPDATE bmi_records SET is_deleted_by_user = 1 WHERE id_bmi = ?', [idBMI]);
         return result;
     },
 
-    deleteByIdBMI: async (idBMI) => {
-        const [result] = await pool.execute("DELETE FROM bmi_records WHERE id_bmi = ?", [idBMI]);
+    // Lấy bản ghi mà user đã xóa 
+    getSoftDeletedBmiByUserId: async (idUser) => {
+        const [rows] = await pool.execute(
+            "SELECT * FROM bmi_records WHERE is_deleted_by_user = 1 AND is_delete = 0 AND id_user = ?",
+            [idUser]
+        );
+        return rows;
+    },
+
+    // Khôi phục BMI cho user
+    recoverBMI: async (idBMI) => {
+        const [result] = await pool.execute('UPDATE bmi_records SET is_deleted_by_user = 0 WHERE id_bmi = ?', [idBMI]);
         return result;
+    },
+
+    // User xóa hằn bản ghi
+    deleteByUser: async (idBMI) => {
+        const [result] = await pool.execute('UPDATE bmi_records SET is_delete = 1 WHERE id_bmi = ?', [idBMI]);
+        return result;
+    },
+
+    // Lấy tổng số lượng BMI
+    getTotalBMI: async () => {
+        const [rows] = await pool.execute("SELECT COUNT(*) AS totalBMIHistory FROM bmi_records");
+        return rows[0].totalBMIHistory;
     },
 
     // Lấy số lượng người theo từng nhóm BMI (Cho biểu đồ tròn)
@@ -39,7 +81,6 @@ const BmiModel = {
             SELECT status, COUNT(*) AS count
             FROM bmi_records
             GROUP BY status
-            ORDER BY FIELD(status, 'Thiếu cân', 'Bình thường', 'Thừa cân', 'Béo phì');
         `;
         const [rows] = await pool.execute(sql);
         // console.log("Dữ liệu từ MySQL:", rows); 
@@ -64,37 +105,37 @@ const BmiModel = {
         return rows;
     },
 
-    getTotalBMIHistory: async () => {
-        const [rows] = await pool.execute("SELECT COUNT(*) AS totalBMIHistory FROM bmi_records");
-        return rows[0].totalBMIHistory;
-    },
-
-    getAllBMI: async () => {
-        const [rows] = await pool.execute(`SELECT 
-            users.full_name,
-            users.gmail,
-            bmi_records.*
+    // Lấy tất cả bản ghi BMI
+    getAllBMI: async (limit, offset) => {
+        const [rows] = await pool.query(
+            `SELECT 
+                users.full_name,
+                users.email,
+                bmi_records.*
             FROM bmi_records
-            JOIN users ON bmi_records.id_user = users.id_user
-            ORDER BY bmi_records.created_at DESC`);
+            INNER JOIN users ON bmi_records.id_user = users.id_user
+            ORDER BY bmi_records.created_at DESC
+            LIMIT ? OFFSET ?`,
+            [limit, offset]
+        );
         return rows;
     },
 
-    searchBMIRecords: async (keyword, fromDate, toDate, status) => {
+    // Tìm kiếm BMI
+    searchBMI: async (keyword, fromDate, toDate, status, limit, offset) => {
         let query = `
             SELECT 
                 users.full_name,
-                users.gmail,
+                users.email,
                 bmi_records.height,
                 bmi_records.weight,
                 bmi_records.bmi_index,
                 bmi_records.status,
                 bmi_records.created_at
             FROM bmi_records
-            JOIN users ON bmi_records.id_user = users.id_user
+            INNER JOIN users ON bmi_records.id_user = users.id_user
             WHERE 1=1
         `;
-
         const values = [];
 
         // Tìm theo tên
@@ -104,14 +145,9 @@ const BmiModel = {
         }
 
         // Tìm theo khoảng ngày
-        if (fromDate) {
-            query += " AND bmi_records.created_at >= ?";
-            values.push(fromDate);
-        }
-
-        if (toDate) {
-            query += " AND bmi_records.created_at <= ?";
-            values.push(toDate);
+        if (fromDate && toDate) {
+            query += " AND DATE(bmi_records.created_at) BETWEEN ? AND ?";
+            values.push(fromDate, toDate);
         }
 
         // Tìm theo status
@@ -120,11 +156,49 @@ const BmiModel = {
             values.push(status);
         }
 
-        query += " ORDER BY bmi_records.created_at DESC";
+        // Thêm phân trang
+        query += " ORDER BY bmi_records.created_at DESC LIMIT ? OFFSET ?";
+        values.push(limit, offset);
 
-        const [rows] = await pool.execute(query, values);
+        const [rows] = await pool.query(query, values);
         return rows;
-    }
+    },
+
+    // Xóa mềm admin
+    softDeleteBMIByAdmin: async (idBMI) => {
+        const [result] = await pool.execute('UPDATE bmi_records SET is_deleted_by_admin = 1 WHERE id_bmi = ?', [idBMI]);
+        return result;
+    },
+
+    // Lấy bản ghi mà admin đã xóa mềm
+    getSoftDeleteBMIByAdmin: async () => {
+        const [result] = await pool.execute(`SELECT 
+            users.full_name,
+            users.email,
+            bmi_records.id_bmi,
+            bmi_records.height,
+            bmi_records.weight,
+            bmi_records.bmi_index,
+            bmi_records.status,
+            bmi_records.created_at
+        FROM bmi_records
+        INNER JOIN users ON bmi_records.id_user = users.id_user
+        WHERE is_deleted_by_admin = 1`);
+        return result;
+    },
+
+    // Khôi phục bmi 
+    recoverBMIByAdmin: async (idBMI) => {
+        const [result] = await pool.execute('UPDATE bmi_records SET is_deleted_by_admin = 0 WHERE id_bmi = ?', [idBMI]);
+        return result;
+    },
+
+    // Xóa BMi vĩnh viễn
+    deleteByIdBMI: async (idBMI) => {
+        const [result] = await pool.execute("DELETE FROM bmi_records WHERE id_bmi = ?", [idBMI]);
+        return result;
+    },
+
 }
 
 module.exports = BmiModel;

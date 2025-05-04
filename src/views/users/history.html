@@ -41,18 +41,35 @@
             <div class="p-4">
                 <h2 class="text-center text-primary mb-4">Lịch sử BMI</h2>
 
-                <div id="error-message" class="alert alert-danger d-none"></div>
+                <!-- Thông báo thành công -->
+                <div id="success-message" class="alert alert-success d-none" role="alert"></div>
 
-                <!-- Lọc theo tình trạng -->
-                <div class="mb-3">
-                    <label for="statusFilter" class="form-label">Lọc theo tình trạng BMI:</label>
-                    <select id="statusFilter" class="form-select">
-                        <option value="">Tất cả</option>
-                        <option value="Thiếu cân">Thiếu cân</option>
-                        <option value="Bình thường">Bình thường</option>
-                        <option value="Thừa cân">Thừa cân</option>
-                        <option value="Béo phì">Béo phì</option>
-                    </select>
+                <div class="mb-3 d-flex align-items-end flex-wrap gap-3">
+                    <div>
+                        <label for="statusFilter" class="form-label">Lọc theo tình trạng BMI:</label>
+                        <select id="statusFilter" class="form-select">
+                            <option value="">Tất cả</option>
+                            <option value="Thiếu cân">Thiếu cân</option>
+                            <option value="Bình thường">Bình thường</option>
+                            <option value="Thừa cân">Thừa cân</option>
+                            <option value="Béo phì">Béo phì</option>
+                        </select>
+                    </div>
+                
+                    <div>
+                        <label for="fromDate" class="form-label">Từ ngày:</label>
+                        <input type="date" id="fromDate" class="form-control">
+                    </div>
+                
+                    <div>
+                        <label for="toDate" class="form-label">Đến ngày:</label>
+                        <input type="date" id="toDate" class="form-control">
+                    </div>
+                
+                    <div class="d-flex gap-2">
+                        <button id="filterBtn" class="btn btn-primary">Lọc</button>
+                        <a href="../users/trash.html" class="btn btn-danger">Xem Thùng Rác</a>
+                    </div>
                 </div>
 
                 <table class="table table-striped">
@@ -81,173 +98,7 @@
         </div>
     </div>
 
-    <script>
-        function getToken() {
-            return localStorage.getItem("token");
-        }
-
-        function getUsername() {
-            return localStorage.getItem("fullName");
-        }
-
-        function clearAuthData() {
-            localStorage.removeItem("token");
-            localStorage.removeItem("fullName");
-        }
-
-        function logout() {
-            clearAuthData();
-            window.location.href = "/src/views/index.html";
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            const token = getToken();
-            const fullName = getUsername();
-            const userNameSpan = document.getElementById("user-name");
-
-            if (!token || !fullName) {
-                alert("Vui lòng đăng nhập để truy cập trang này!");
-                window.location.href = "/src/views/index.html";
-                return;
-            }
-
-            userNameSpan.textContent = `Xin chào, ${fullName}`;
-
-            document.getElementById("logout-btn").addEventListener("click", logout);
-
-            let data = [];
-            const itemsPerPage = 10;  // Số lượng bản ghi mỗi trang
-            let currentPage = 1;      // Trang hiện tại
-            // Hiển thị lịch sử BMI
-            fetchHistory(); // Gọi hàm fetchHistory khi trang được tải
-
-            document.getElementById("statusFilter").addEventListener("change", function () {
-                const status = this.value;
-                fetchHistory(status); // Gọi hàm fetchHistory với điều kiện lọc theo tình trạng BMI
-            });
-
-            // Hiển thị lịch sử BMI khi lọc
-            async function fetchHistory(status = "") {
-                const token = getToken();
-
-                // Tạo query string nếu có giá trị status
-                const url = status ? `http://localhost:3000/api/v1/user/filter?status=${status}` : 'http://localhost:3000/api/v1/user/history';
-                try {
-                    const response = await fetch(url, {
-                        method: "GET",
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "Content-Type": "application/json"
-                        }
-                    });
-
-                    data = await response.json();
-
-                    if (!Array.isArray(data)) {
-                        console.error("Dữ liệu nhận được không phải là mảng:", data);
-                        data = []; // Hoặc hiển thị thông báo lỗi phù hợp
-                    }
-
-                    renderTable(); // Gọi hàm renderTable để hiển thị dữ liệu
-                    renderPagination();
-                } catch (error) {
-                    console.error("Lỗi khi lấy dữ liệu", error);
-                }
-            }
-
-            // Hàm render dữ liệu vào bảng với phân trang
-            function renderTable() {
-                const historyTableBody = document.getElementById("history-table-body");
-                historyTableBody.innerHTML = "";
-
-                if (data.length === 0) {
-                    historyTableBody.innerHTML = `<tr><td colspan="7" class="text-center">Không có lịch sử BMI nào</td></tr>`;
-                    return;
-                }
-
-
-                const start = (currentPage - 1) * itemsPerPage;
-                const end = start + itemsPerPage;
-                const paginatedData = data.slice(start, end);
-
-                // Hiển thị dữ liệu vào bảng
-                historyTableBody.innerHTML = paginatedData.map((data, index) => `
-                        <tr>
-                            <td>${start + index + 1}</td>
-                            <td>${data.weight}</td>
-                            <td>${data.height}</td>
-                            <td>${data.bmi_index}</td>
-                            <td>${data.status}</td>
-                            <td>${new Date(data.created_at).toLocaleDateString('vi-VN')}</td>
-                            <td><button class="btn btn-danger btn-sm delete-btn" data-id="${data.id_bmi}">Xóa</button></td>
-                        </tr>
-                    `).join('');
-
-                // Lắng nghe sự kiện click trên các nút xóa
-                const deleteButtons = document.querySelectorAll('.delete-btn');
-                deleteButtons.forEach(button => {
-                    button.addEventListener('click', function () {
-                        const idBMI = button.getAttribute('data-id');
-                        deleteBMI(idBMI);
-                    });
-                });
-            }
-
-            // Hàm tạo các nút phân trang
-            function renderPagination() {
-                const paginationLinks = document.getElementById("pagination-links");
-                const totalPages = Math.ceil(data.length / itemsPerPage);  // Tính số trang
-                paginationLinks.innerHTML = '';
-                for (let i = 1; i <= totalPages; i++) {
-                    const pageLink = document.createElement('li');
-                    pageLink.classList.add('page-item');
-                    if (i === currentPage) {
-                        pageLink.classList.add('active');
-                    }
-
-                    const pageButton = document.createElement('a');
-                    pageButton.classList.add('page-link');
-                    pageButton.href = '#';
-                    pageButton.textContent = i;
-
-                    pageButton.addEventListener('click', function () {
-                        currentPage = i;
-                        displayPage(currentPage);  // Hiển thị trang mới khi click
-                        renderPagination();  // Cập nhật lại các nút phân trang
-                    });
-
-                    pageLink.appendChild(pageButton);
-                    paginationLinks.appendChild(pageLink);
-                }
-            }
-
-            // Xoá dữ liệu BMI
-            async function deleteBMI(idBMI) {
-                const token = getToken();
-                if (confirm('Bạn có chắc chắn muốn xóa dữ liệu này?')) {
-                    try {
-                        const response = await fetch(`http://localhost:3000/api/v1/user/delete/${idBMI}`, {
-                            method: 'PATCH',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Không thể xóa dữ liệu');
-                        }
-
-                        alert('Dữ liệu đã được xóa thành công');
-                        // Tải lại trang sau khi xóa dữ liệu
-                        window.location.reload();
-                    } catch (error) {
-                        console.error("Lỗi khi lấy dữ liệu", error);
-                    }
-                }
-            }
-        });
-    </script>
+    <script type="module" src="../../public/js/user/history.js"></script>
 </body>
 
 </html>

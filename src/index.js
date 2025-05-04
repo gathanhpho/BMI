@@ -20,28 +20,29 @@ app.listen(port, () => {
 })
 
 // const bcrypt = require("bcryptjs");
-// const { v4: uuidv4 } = require("uuid");
 
 // const createAdmin = async () => {
-//     try {
-//         const idUser = uuidv4();
-//         const username = "admin";
-//         const email = "admin@gmail.com";
-//         const password = "aicap2003"; // Đổi mật khẩu nếu cần
-//         const hashedPassword = await bcrypt.hash(password, 10);
-//         const role = "admin";
+//   try {
+//       const fullName = "Admin"; // Bạn có thể đổi nếu muốn
+//       const email = "admin@gmail.com";
+//       const password = "aicap2003"; // Đổi mật khẩu nếu cần
+//       const hashedPassword = await bcrypt.hash(password, 10);
+//       const role = "admin";
+//       const gender = "Nam"; // hoặc "Nam" / "Nữ"
+//       const phone = "0373164489"; // Đảm bảo không trùng với dữ liệu đã có
 
-//         await pool.execute(
-//             "INSERT INTO users (id_user, username, email, password, role) VALUES (?, ?, ?, ?, ?)",
-//             [idUser, username, email, hashedPassword, role]
-//         );
+//       await pool.execute(
+//           `INSERT INTO users (full_name, email, password, role, gender, phone) 
+//            VALUES (?, ?, ?, ?, ?, ?)`,
+//           [fullName, email, hashedPassword, role, gender, phone]
+//       );
 
-//         console.log("Tạo tài khoản admin thành công!");
-//     } catch (error) {
-//         console.error("Lỗi khi tạo admin:", error);
-//     } finally {
-//         process.exit(); // Thoát chương trình sau khi chạy
-//     }
+//       console.log("Tạo tài khoản admin thành công!");
+//   } catch (error) {
+//       console.error("Lỗi khi tạo admin:", error);
+//   } finally {
+//       process.exit(); // Thoát chương trình sau khi chạy
+//   }
 // };
 
 // // Gọi hàm tạo admin
